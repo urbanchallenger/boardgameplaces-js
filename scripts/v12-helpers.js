@@ -1,0 +1,10 @@
+/*!
+ * Board Game Places — Detail-Panel Helpers (V12 Helpers)
+ * Version: 1.12.1
+ * Project: https://boardgameplaces.com
+ * Repo: https://github.com/urbanchallenger/boardgameplaces-js
+ * License: MIT
+ *
+ * Exposes BGP_LBL — the human-readable label maps for type / gameLevel / foodLevel / pricing / frequency / setting / accessibility / languages — plus small slot/CSV/slug helpers used by the render layer.
+ */
+(function(){var M={F:{permanent:'Permanent',weekly:'Wöchentlich',biweekly:'Zweiwöchentlich',monthly:'Monatlich',irregular:'Unregelmäßig'},S:{commercial:'Kommerziell',community:'Community',religious:'Kirchengemeinde',intercultural:'Interkulturell',senior:'Senioren',family:'Familien',shop:'Spieleladen',library:'Bibliothek'},A:{wheelchair:'♿ Barrierefrei','kid-friendly':'👶 Familienfreundlich',quiet:'🔇 Ruhig','late-night':'🌙 Spät offen','reservation-needed':'📅 Reservierung'},L:{de:'🇩🇪 DE',en:'🇬🇧 EN',fr:'🇫🇷 FR',it:'🇮🇹 IT',es:'🇪🇸 ES',tr:'🇹🇷 TR'},G:{1:'Wenige (<20)',2:'Solide (20–100)',3:'Groß (100–500)',4:'Sehr groß (500+)'},FD:{1:'Nur Getränke',2:'Getränke & Snacks',3:'Mahlzeiten',4:'Vollständiges Restaurant'},P:{free:'Kein Eintritt',consumption:'Verzehrpflicht',hourly:'Stundentarif',flat:'Tagespauschale',membership:'Vereinsbeitrag'}};window.BGP_LBL=M;window.BGP_GET=function(k,K,fb){var s=k.querySelector('.bgp-data[data-key="'+K+'"]');var v=s?s.textContent.trim():'';return v||fb||''};window.BGP_CSV=function(s){return(s||'').split(',').map(function(x){return x.trim()}).filter(Boolean)};window.BGP_SLG=function(s){return(s||'').toLowerCase().trim().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')};window.BGP_SP=function(c,t){var s=document.createElement('span');s.className=c;s.textContent=t;return s};})();
