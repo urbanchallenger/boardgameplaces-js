@@ -1,11 +1,12 @@
 /*!
  * Board Game Places — Finsweet Marker Hook (V13)
- * Version: 1.13.3
+ * Version: 1.13.4
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
  *
  * After Finsweet List Load streams in CMS items beyond Webflow's 100-item cap, this hook fills in markers and click handlers for the cards V11 fix never saw. Uses window.bgpMap (set by intercept.js) and dedupes against existing markers via lat/lng key + location-id.
+ * v1.13.4: also takes over the "X Orte gefunden" counter — V11's count was stuck at the first-batch size because V11's internal `it` array doesn't include Finsweet-loaded cards. We count visible .location-card DOM elements directly and write the result after V11's own filter pass.
  */
 (function(){'use strict';
 var L=window.L;if(!L)return;
@@ -55,6 +56,21 @@ var ws=p.querySelector('.detail-section-web'),w=slot(card,'web');
 if(ws){if(w&&!/example\.com/i.test(w)){ws.style.display='';var wa=ws.querySelector('.detail-web');if(wa){var h=w.indexOf('http')===0?w:'https://'+w;wa.setAttribute('href',h);wa.textContent=w.replace(/^https?:\/\//,'').replace(/\/$/,'')}}else ws.style.display='none'}
 p.classList.add('open')}
 function bind(card){if(card.dataset.bgpV13)return;card.dataset.bgpV13='1';card.addEventListener('click',function(){fill(card)})}
+function updateCount(){
+  var rc=document.getElementById('results-count');if(!rc)return;
+  var cards=document.querySelectorAll('.location-card');
+  var visible=0;
+  for(var i=0;i<cards.length;i++){
+    var c=cards[i];
+    if(c.classList.contains('hidden'))continue;
+    // Also respect any display:none from Finsweet's filtering or CSS hide-when-empty
+    var cs=c.currentStyle||window.getComputedStyle(c);
+    if(cs.display==='none')continue;
+    visible++
+  }
+  rc.textContent=visible+' Orte gefunden'
+}
+function scheduleUpdateCount(){setTimeout(updateCount,80)}
 function addMissing(){var m=findMap();if(!m){return}var added=0;
 document.querySelectorAll('.location-card').forEach(function(card){
 bind(card);
@@ -67,13 +83,17 @@ var t=(card.getAttribute('data-type')||'').toLowerCase();
 var mk=L.marker([lat,lng],{icon:ic(t)}).addTo(m);
 mk.on('click',function(){fill(card);m.flyTo([lat,lng],13,{duration:0.6})});
 addedV13[id]=mk;existing[key]=true;added++});
-if(added>0)console.log('[BGP V13.3] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')')}
+if(added>0)console.log('[BGP V13.4] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')');
+updateCount()}
 function start(){snapshot();addMissing();
 var le=document.querySelector('.w-dyn-items');
 if(le){var t=null;new MutationObserver(function(){clearTimeout(t);t=setTimeout(addMissing,200)}).observe(le,{childList:true})}
 window.addEventListener('fs-list-success',addMissing);window.addEventListener('cmsload',addMissing);
+// Re-count after V11's own filter passes complete. V11 listens on data-filter-type, search input, sliders, pricing chips.
+document.addEventListener('click',function(e){if(e.target.closest('[data-filter-type], .pricing-chip, .filter-chip, .reset-filters'))scheduleUpdateCount()},true);
+document.addEventListener('input',function(e){if(e.target.matches('input[type=search], input.search-input, input[type=range], input[type=text]'))scheduleUpdateCount()},true);
 setTimeout(addMissing,2000);setTimeout(addMissing,5000);setTimeout(addMissing,9000)}
-function wait(n){if(n<=0){console.warn('[BGP V13.3] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
+function wait(n){if(n<=0){console.warn('[BGP V13.4] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
 if(document.readyState!=='loading'){setTimeout(function(){wait(80)},500)}
 else{document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){wait(80)},500)})}
 })();
