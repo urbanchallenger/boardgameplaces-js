@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — Finsweet Marker Hook (V13)
- * Version: 1.13.5
+ * Version: 1.13.6
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -8,6 +8,7 @@
  * After Finsweet List Load streams in CMS items beyond Webflow's 100-item cap, this hook fills in markers and click handlers for the cards V11 fix never saw. Uses window.bgpMap (set by intercept.js) and dedupes against existing markers via lat/lng key + location-id.
  * v1.13.4: also takes over the "X Orte gefunden" counter — V11's count was stuck at the first-batch size because V11's internal `it` array doesn't include Finsweet-loaded cards. We count visible .location-card DOM elements directly and write the result after V11's own filter pass.
  * v1.13.5: marker class fix — V13 now uses V11's existing `.bm` / `.bc` / `.bb` / `.bk` CSS instead of `.custom-marker` / `.tc` / `.tb` / `.tk` (which had no CSS, leaving floating letters without backgrounds). Also: V13 now mirrors V11's filter pass, hiding/showing its own markers when card.classList.toggle('hidden') changes, so filter clicks affect the entire map not just V11's first 100.
+ * v1.13.6: duplicate-marker fix — when two CMS items share identical lat/lng (e.g. multiple game-night entries at the same venue), V13 was occasionally creating stacked markers because the snapshot of V11's markers was only taken once at start-up. Now we re-snapshot before each addMissing() pass so any markers V11 added late are recognised, and we double-check live against the map before adding.
  */
 (function(){'use strict';
 var L=window.L;if(!L)return;
@@ -90,6 +91,9 @@ function syncMarkerVisibility(){
 }
 function scheduleSync(){setTimeout(function(){syncMarkerVisibility();updateCount()},80)}
 function addMissing(){var m=findMap();if(!m){return}var added=0;
+// v1.13.6: re-snapshot V11's current markers each pass — V11 may have added markers AFTER our initial start() snapshot
+// (e.g. slow init), and without this we'd stack a second V13 marker on top.
+m.eachLayer(function(l){if(l instanceof L.Marker){var ll=l.getLatLng();existing[ll.lat.toFixed(5)+','+ll.lng.toFixed(5)]=true}});
 document.querySelectorAll('.location-card').forEach(function(card){
 bind(card);
 var lat=parseFloat(card.getAttribute('data-lat')),lng=parseFloat(card.getAttribute('data-lng'));
@@ -101,7 +105,7 @@ var t=(card.getAttribute('data-type')||'').toLowerCase();
 var mk=L.marker([lat,lng],{icon:ic(t)}).addTo(m);
 mk.on('click',function(){fill(card);m.flyTo([lat,lng],13,{duration:0.6})});
 addedV13[id]=mk;existing[key]=true;added++});
-if(added>0)console.log('[BGP V13.5] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')');
+if(added>0)console.log('[BGP V13.6] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')');
 syncMarkerVisibility();updateCount()}
 function start(){snapshot();addMissing();
 var le=document.querySelector('.w-dyn-items');
@@ -111,7 +115,7 @@ window.addEventListener('fs-list-success',addMissing);window.addEventListener('c
 document.addEventListener('click',function(e){if(e.target.closest('[data-filter-type], .pricing-chip, .filter-chip, .reset-filters'))scheduleSync()},true);
 document.addEventListener('input',function(e){if(e.target.matches('input[type=search], input.search-input, input[type=range], input[type=text]'))scheduleSync()},true);
 setTimeout(addMissing,2000);setTimeout(addMissing,5000);setTimeout(addMissing,9000)}
-function wait(n){if(n<=0){console.warn('[BGP V13.5] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
+function wait(n){if(n<=0){console.warn('[BGP V13.6] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
 if(document.readyState!=='loading'){setTimeout(function(){wait(80)},500)}
 else{document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){wait(80)},500)})}
 })();
