@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.0
+ * Version: 1.15.1
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -15,10 +15,36 @@
  *
  * Sidebar list rendering remains Webflow's job (cards are bound to the CMS via
  * the Designer); V15 only toggles the .hidden class on cards during filter passes.
+ *
+ * v1.15.1: V11 used to load Leaflet for us. With V11 removed, V15 now loads
+ *          Leaflet (CSS+JS) itself before initialising the map.
  */
 (function(){'use strict';
 
-var L=window.L;if(!L){console.error('[BGP V15] Leaflet not loaded');return}
+// ---- Ensure Leaflet is available ----
+// V11 used to load Leaflet for us; with V11 gone, V15 takes responsibility.
+function loadLeafletIfNeeded(cb){
+  if(window.L){cb();return}
+  // CSS first (idempotent — checks for existing stylesheet)
+  if(!document.querySelector('link[href*="leaflet"]')){
+    var css=document.createElement('link');
+    css.rel='stylesheet';
+    css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    css.integrity='sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+    css.crossOrigin='';
+    document.head.appendChild(css);
+  }
+  var s=document.createElement('script');
+  s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.integrity='sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+  s.crossOrigin='';
+  s.onload=function(){cb()};
+  s.onerror=function(){console.error('[BGP V15] failed to load Leaflet')};
+  document.head.appendChild(s);
+}
+
+function startV15(){
+var L=window.L;if(!L){console.error('[BGP V15] Leaflet not loaded after wait');return}
 
 // ---- Label maps (carried forward from v12-helpers, with T added) ----
 var LBL={
@@ -463,6 +489,18 @@ if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',bootstrap);
 }else{
   bootstrap();
+}
+
+} // end startV15
+
+// Top-level entry: ensure Leaflet, then start
+function entry(){
+  loadLeafletIfNeeded(function(){startV15()});
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',entry);
+}else{
+  entry();
 }
 
 })();
