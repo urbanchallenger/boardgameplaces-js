@@ -1,12 +1,13 @@
 /*!
  * Board Game Places — Finsweet Marker Hook (V13)
- * Version: 1.13.4
+ * Version: 1.13.5
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
  *
  * After Finsweet List Load streams in CMS items beyond Webflow's 100-item cap, this hook fills in markers and click handlers for the cards V11 fix never saw. Uses window.bgpMap (set by intercept.js) and dedupes against existing markers via lat/lng key + location-id.
  * v1.13.4: also takes over the "X Orte gefunden" counter — V11's count was stuck at the first-batch size because V11's internal `it` array doesn't include Finsweet-loaded cards. We count visible .location-card DOM elements directly and write the result after V11's own filter pass.
+ * v1.13.5: marker class fix — V13 now uses V11's existing `.bm` / `.bc` / `.bb` / `.bk` CSS instead of `.custom-marker` / `.tc` / `.tb` / `.tk` (which had no CSS, leaving floating letters without backgrounds). Also: V13 now mirrors V11's filter pass, hiding/showing its own markers when card.classList.toggle('hidden') changes, so filter clicks affect the entire map not just V11's first 100.
  */
 (function(){'use strict';
 var L=window.L;if(!L)return;
@@ -21,7 +22,8 @@ function findMap(){
   return null
 }
 function snapshot(){var m=findMap();if(!m)return;m.eachLayer(function(l){if(l instanceof L.Marker){var ll=l.getLatLng();existing[ll.lat.toFixed(5)+','+ll.lng.toFixed(5)]=true}})}
-function ic(t){var k=t==='cafe'?'tc':t==='bar'?'tb':'tk',l=t==='cafe'?'S':t==='bar'?'B':'C';return L.divIcon({className:'',html:'<div class="custom-marker '+k+'"><span>'+l+'</span></div>',iconSize:[28,28],iconAnchor:[14,28]})}
+// Use V11's existing CSS classes: bm + bc/bb/bk so we inherit V11's marker styling automatically.
+function ic(t){var k=t==='cafe'?'bc':t==='bar'?'bb':'bk',l=t==='cafe'?'S':t==='bar'?'B':'C';return L.divIcon({className:'',html:'<div class="bm '+k+'"><span>'+l+'</span></div>',iconSize:[28,28],iconAnchor:[14,28]})}
 function slot(c,k){var s=c.querySelector('.bgp-data[data-key="'+k+'"]');return s?s.textContent.trim():''}
 function gv(c,k,a){return slot(c,k)||(a?c.getAttribute(a)||'':'')}
 function fill(card){
@@ -63,14 +65,30 @@ function updateCount(){
   for(var i=0;i<cards.length;i++){
     var c=cards[i];
     if(c.classList.contains('hidden'))continue;
-    // Also respect any display:none from Finsweet's filtering or CSS hide-when-empty
-    var cs=c.currentStyle||window.getComputedStyle(c);
+    var cs=window.getComputedStyle(c);
     if(cs.display==='none')continue;
     visible++
   }
   rc.textContent=visible+' Orte gefunden'
 }
-function scheduleUpdateCount(){setTimeout(updateCount,80)}
+// Sync each V13 marker's visibility against its card's hidden state.
+// V11 uses card.classList.toggle('hidden', !ok) and removeLayer/addTo to filter its own markers.
+// We mirror the same behaviour for V13-added markers.
+function syncMarkerVisibility(){
+  var m=findMap();if(!m)return;
+  document.querySelectorAll('.location-card').forEach(function(card){
+    var lat=parseFloat(card.getAttribute('data-lat')),lng=parseFloat(card.getAttribute('data-lng'));
+    if(!isFinite(lat)||!isFinite(lng))return;
+    var key=lat.toFixed(5)+','+lng.toFixed(5);
+    var id=card.getAttribute('data-location-id')||key;
+    var mk=addedV13[id];if(!mk)return;
+    var hidden=card.classList.contains('hidden');
+    var onMap=m.hasLayer(mk);
+    if(hidden&&onMap)m.removeLayer(mk);
+    else if(!hidden&&!onMap)mk.addTo(m)
+  })
+}
+function scheduleSync(){setTimeout(function(){syncMarkerVisibility();updateCount()},80)}
 function addMissing(){var m=findMap();if(!m){return}var added=0;
 document.querySelectorAll('.location-card').forEach(function(card){
 bind(card);
@@ -83,17 +101,17 @@ var t=(card.getAttribute('data-type')||'').toLowerCase();
 var mk=L.marker([lat,lng],{icon:ic(t)}).addTo(m);
 mk.on('click',function(){fill(card);m.flyTo([lat,lng],13,{duration:0.6})});
 addedV13[id]=mk;existing[key]=true;added++});
-if(added>0)console.log('[BGP V13.4] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')');
-updateCount()}
+if(added>0)console.log('[BGP V13.5] +'+added+' markers (total cards: '+document.querySelectorAll('.location-card').length+')');
+syncMarkerVisibility();updateCount()}
 function start(){snapshot();addMissing();
 var le=document.querySelector('.w-dyn-items');
 if(le){var t=null;new MutationObserver(function(){clearTimeout(t);t=setTimeout(addMissing,200)}).observe(le,{childList:true})}
 window.addEventListener('fs-list-success',addMissing);window.addEventListener('cmsload',addMissing);
-// Re-count after V11's own filter passes complete. V11 listens on data-filter-type, search input, sliders, pricing chips.
-document.addEventListener('click',function(e){if(e.target.closest('[data-filter-type], .pricing-chip, .filter-chip, .reset-filters'))scheduleUpdateCount()},true);
-document.addEventListener('input',function(e){if(e.target.matches('input[type=search], input.search-input, input[type=range], input[type=text]'))scheduleUpdateCount()},true);
+// React to V11's filter passes: it toggles 'hidden' on cards. We mirror that to V13 markers + counter.
+document.addEventListener('click',function(e){if(e.target.closest('[data-filter-type], .pricing-chip, .filter-chip, .reset-filters'))scheduleSync()},true);
+document.addEventListener('input',function(e){if(e.target.matches('input[type=search], input.search-input, input[type=range], input[type=text]'))scheduleSync()},true);
 setTimeout(addMissing,2000);setTimeout(addMissing,5000);setTimeout(addMissing,9000)}
-function wait(n){if(n<=0){console.warn('[BGP V13.4] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
+function wait(n){if(n<=0){console.warn('[BGP V13.5] map never found');return}if(findMap())start();else setTimeout(function(){wait(n-1)},200)}
 if(document.readyState!=='loading'){setTimeout(function(){wait(80)},500)}
 else{document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){wait(80)},500)})}
 })();
