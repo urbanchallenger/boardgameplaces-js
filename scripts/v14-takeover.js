@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V14 Marker Takeover
- * Version: 1.14.0
+ * Version: 1.14.1
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -15,10 +15,13 @@
  * - V11's filter logic still toggles .hidden on cards as before (we observe that, not replace it)
  * - V11's submit form, list rendering, etc. all keep working
  * - V11's marker functions become dead weight; we just clear the markers it produced
+ * v1.14.1: foreign-marker wipe — V11 keeps adding its own first-100 markers in async passes after V14's takeover,
+ *          producing duplicates. V14 now maintains a Set of its own marker references and periodically removes any
+ *          marker on the map that isn't in that Set.
  */
 (function(){'use strict';
 var L=window.L;if(!L)return;
-var mapInst=null,v14Markers={},taken=false;
+var mapInst=null,v14Markers={},v14MarkerSet=null,taken=false;
 
 function findMap(){
   if(mapInst)return mapInst;
@@ -71,6 +74,37 @@ function fill(card){
   p.classList.add('open')
 }
 
+// Build the WeakSet of our own markers, so we can identify foreign markers (e.g. ones V11 keeps adding async)
+function rebuildMarkerSet(){
+  v14MarkerSet=new WeakSet();
+  Object.keys(v14Markers).forEach(function(id){v14MarkerSet.add(v14Markers[id].marker)});
+}
+
+// Remove any Marker on the map that is NOT one we created (defends against V11 adding its first-100 markers late)
+function wipeForeignMarkers(){
+  var m=findMap();if(!m||!v14MarkerSet)return;
+  var toRemove=[];
+  m.eachLayer(function(l){
+    if(l instanceof L.Marker&&!v14MarkerSet.has(l))toRemove.push(l);
+  });
+  toRemove.forEach(function(l){m.removeLayer(l)});
+  if(toRemove.length>0)console.log('[BGP V14] wiped '+toRemove.length+' foreign markers');
+}
+
+// Re-attach our markers if V11's filter pass removed them. Respects card.hidden state.
+function ensureOwnMarkersOnMap(){
+  var m=findMap();if(!m)return;
+  var reattached=0;
+  Object.keys(v14Markers).forEach(function(id){
+    var entry=v14Markers[id];
+    var hidden=entry.card.classList.contains('hidden');
+    var onMap=m.hasLayer(entry.marker);
+    if(!hidden&&!onMap){entry.marker.addTo(m);reattached++}
+    else if(hidden&&onMap)m.removeLayer(entry.marker);
+  });
+  if(reattached>0)console.log('[BGP V14] re-attached '+reattached+' markers V11 had removed');
+}
+
 // Take over: wipe all existing markers, rebuild from card DOM
 function takeover(){
   var m=findMap();if(!m)return;
@@ -96,8 +130,10 @@ function takeover(){
     added++;
   });
   taken=true;
+  rebuildMarkerSet();
   console.log('[BGP V14] took over: '+added+' markers (cards: '+document.querySelectorAll('.location-card').length+')');
   syncFilter();
+  wipeForeignMarkers();
   updateCount();
 }
 
@@ -149,7 +185,11 @@ function startWatching(){
             if(!card.dataset.bgpV14){card.dataset.bgpV14='1';card.addEventListener('click',function(e){if(e.target.closest('a,button'))return;fill(card)})}
             newOnes++;
           });
-          if(newOnes>0)console.log('[BGP V14] +'+newOnes+' markers from late load');
+          if(newOnes>0){
+            rebuildMarkerSet();
+            wipeForeignMarkers();
+            console.log('[BGP V14] +'+newOnes+' markers from late load');
+          }
           updateCount();
         }
       },150);
@@ -201,6 +241,25 @@ function bootstrap(){
         // Backup re-takeovers in case Finsweet adds more after we ran
         setTimeout(function(){if(!taken)takeover()},2000);
         setTimeout(function(){syncFilter();updateCount()},3000);
+        // Periodic foreign-marker wipe + re-attach own markers — V11 sometimes adds its own first-100 markers
+        // asynchronously after our takeover, AND occasionally removes our markers during its filter passes.
+        // We defend against both: wipe foreign markers, then re-attach any of ours that got dropped.
+        var wipeCount=0;
+        var wipeIv=setInterval(function(){
+          wipeCount++;
+          wipeForeignMarkers();
+          ensureOwnMarkersOnMap();
+          if(wipeCount>=16){clearInterval(wipeIv);
+            // Final safety net: every 3s for another minute
+            var slowWipeCount=0;
+            var slowIv=setInterval(function(){
+              slowWipeCount++;
+              wipeForeignMarkers();
+              ensureOwnMarkersOnMap();
+              if(slowWipeCount>=20)clearInterval(slowIv);
+            },3000);
+          }
+        },500);
         return;
       }
     }
