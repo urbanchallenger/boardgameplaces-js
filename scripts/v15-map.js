@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.2
+ * Version: 1.15.3
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -21,8 +21,36 @@
  * v1.15.2: Read ALL CMS-bound fields from .bgp-data slots. The card wrapper's
  *          data-* attributes are Designer placeholder defaults, NOT real data.
  *          Only data-lat, data-lng, data-location-id are CMS-bound at the wrapper.
+ * v1.15.3: V11 used to inject CSS for marker pins (.bm/.bc/.bb/.bk) and the
+ *          .detail-panel.open visibility state. V15 now injects those styles
+ *          itself via a <style> tag. Card and detail-panel container styling
+ *          remains owned by Webflow Designer.
  */
 (function(){'use strict';
+
+// ---- Inject CSS for V15-owned elements ----
+// V11 used to inject these styles inline. With V11 gone, V15 owns them.
+// Only includes styles for elements V15 creates or controls (markers + detail panel open state).
+// All other classes (.location-card, .filter-chip, .detail-panel container, etc.) are styled by Webflow Designer.
+function injectStyles(){
+  if(document.getElementById('bgp-v15-styles'))return;
+  var css=''
++'.bm{width:28px;height:28px;border:2px solid #2a2622;border-radius:50% 50% 50% 0;'
++'transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;'
++'box-shadow:2px 2px 0 #2a2622;}'
++'.bm.bc{background:#d4a63a;}'
++'.bm.bb{background:#3a6b3a;}'
++'.bm.bk{background:#c8471e;}'
++'.bm span{transform:rotate(45deg);font-size:13px;font-weight:700;color:#2a2622;'
++'font-family:"IBM Plex Sans",system-ui,sans-serif;}'
++'.bm.bb span,.bm.bk span{color:#fff;}'
++'.detail-panel.open{display:block!important;}'
++'.location-card.hidden{display:none!important;}';
+  var s=document.createElement('style');
+  s.id='bgp-v15-styles';
+  s.textContent=css;
+  document.head.appendChild(s);
+}
 
 // ---- Ensure Leaflet is available ----
 // V11 used to load Leaflet for us; with V11 gone, V15 takes responsibility.
@@ -48,6 +76,7 @@ function loadLeafletIfNeeded(cb){
 
 function startV15(){
 var L=window.L;if(!L){console.error('[BGP V15] Leaflet not loaded after wait');return}
+injectStyles();
 
 // ---- Label maps (carried forward from v12-helpers, with T added) ----
 var LBL={
