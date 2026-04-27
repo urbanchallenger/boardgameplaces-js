@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.3
+ * Version: 1.15.4
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -25,27 +25,79 @@
  *          .detail-panel.open visibility state. V15 now injects those styles
  *          itself via a <style> tag. Card and detail-panel container styling
  *          remains owned by Webflow Designer.
+ * v1.15.4: Carry V11's full ~3KB CSS verbatim (type-tag colour tokens, range slider,
+ *          pricing-chip active, location-card hover/active, mobile responsive layout
+ *          switch, listicle marker variants). ALSO: V11 dynamically added .tc/.tb/.tk
+ *          classes to .type-tag elements per card type — V15 now does the same, and
+ *          replaces the English type label ("club") with the German one ("Spieleclub").
+ *          Same applies to #detail-type in the detail panel.
  */
 (function(){'use strict';
 
 // ---- Inject CSS for V15-owned elements ----
-// V11 used to inject these styles inline. With V11 gone, V15 owns them.
-// Only includes styles for elements V15 creates or controls (markers + detail panel open state).
-// All other classes (.location-card, .filter-chip, .detail-panel container, etc.) are styled by Webflow Designer.
+// V11 injected ~3.2KB of CSS inline. V15 carries that forward verbatim because it's been
+// thoroughly tested. Covers: marker pins (.bm/.bc/.bb/.bk), card type-tag color tokens
+// (.type-tag.tc/.tb/.tk), sidebar marker variant (.sm/.sc/.sb/.sk for listicle pages),
+// range slider styling, pricing-chip active state, location-card hover/active, mobile
+// responsive switching, and the .open visibility states for detail panel + filter panel.
 function injectStyles(){
   if(document.getElementById('bgp-v15-styles'))return;
   var css=''
-+'.bm{width:28px;height:28px;border:2px solid #2a2622;border-radius:50% 50% 50% 0;'
-+'transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;'
-+'box-shadow:2px 2px 0 #2a2622;}'
-+'.bm.bc{background:#d4a63a;}'
-+'.bm.bb{background:#3a6b3a;}'
-+'.bm.bk{background:#c8471e;}'
-+'.bm span{transform:rotate(45deg);font-size:13px;font-weight:700;color:#2a2622;'
-+'font-family:"IBM Plex Sans",system-ui,sans-serif;}'
-+'.bm.bb span,.bm.bk span{color:#fff;}'
-+'.detail-panel.open{display:block!important;}'
-+'.location-card.hidden{display:none!important;}';
+// Marker pins (drop shape with rotated content)
++'.bm{width:28px;height:28px;border:2px solid #2a2622;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 0 #2a2622}'
++'.bm>span{transform:rotate(45deg);font-size:13px;font-weight:700;color:#2a2622}'
++'.bc{background:#d4a63a}'
++'.bb{background:#3a6b3a}'
++'.bb>span,.bk>span{color:#fff}'
++'.bk{background:#c8471e}'
+// Hidden utility
++'.hidden{display:none!important}'
++'.location-card.hidden{display:none!important}'
+// Type-tag colour tokens (applied dynamically by V15 to .type-tag elements inside cards)
++'.type-tag.tc{background:#d4a63a!important;color:#1a1816!important;border-color:#2a2622!important}'
++'.type-tag.tb{background:#3a6b3a!important;color:#fff!important;border-color:#3a6b3a!important}'
++'.type-tag.tk{background:#c8471e!important;color:#fff!important;border-color:#c8471e!important}'
+// Detail-panel header type-tag (id selector keeps Webflow Designer style as fallback)
++'#detail-type.tc{background:#d4a63a}'
++'#detail-type.tb{background:#3a6b3a;color:#fff;border-color:#3a6b3a}'
++'#detail-type.tk{background:#c8471e;color:#fff;border-color:#c8471e}'
+// Sidebar/listicle marker variant (.sm = small marker, used on listicle pages)
++'.sm{width:32px;height:32px;border:2px solid #2a2622;background:#fffdf7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Fraunces",serif;font-weight:700;font-size:15px;color:#2a2622;box-shadow:2px 2px 0 #2a2622}'
++'.sm.sc{background:#d4a63a}'
++'.sm.sb{background:#3a6b3a;color:#fff}'
++'.sm.sk{background:#c8471e;color:#fff}'
+// Listicle spot card highlight
++'.spot-card.highlight{transform:translate(-2px,-2px);box-shadow:8px 8px 0 #c8471e;transition:transform .2s,box-shadow .2s}'
+// Range slider
++'input.range-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:#f5f1e8;border:1.5px solid #2a2622;outline:none;cursor:pointer;padding:0;margin:0;display:block}'
++'input.range-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#c8471e;border:2px solid #2a2622;border-radius:50%;cursor:pointer;box-shadow:1.5px 1.5px 0 #2a2622}'
++'input.range-slider::-moz-range-thumb{width:20px;height:20px;background:#c8471e;border:2px solid #2a2622;border-radius:50%;cursor:pointer;box-shadow:1.5px 1.5px 0 #2a2622;box-sizing:border-box}'
+// Pricing chip active state
++'.pricing-chip.active{background:#1a1816!important;color:#fffdf7!important;border-color:#1a1816!important}'
+// Open states for filter panel and detail panel
++'.detail-filter-panel.open{display:block!important}'
++'.detail-panel.open{display:block!important}'
+// Submit form (left in for forwards-compat; V15 does not implement the form yet)
++'#submit-form-backdrop.open{display:flex!important}'
++'.form-input-err{border-color:#c8471e!important;background:#fef0ea!important}'
++'.form-submitting{opacity:0.6;pointer-events:none}'
+// Location card hover/active
++'.location-card{transition:transform .12s,box-shadow .12s}'
++'.location-card:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 #2a2622}'
++'.location-card.active{background:#e8a07a!important;transform:translate(-2px,-2px);box-shadow:4px 4px 0 #2a2622}'
+// Mobile responsive layout switch (show-list / show-map body classes)
++'@media(max-width:991px){'
++  'body.show-list .sidebar{max-height:none!important;height:100vh!important;border-bottom-width:0!important}'
++  'body.show-list .map-wrap{display:none!important}'
++  'body.show-map .sidebar{max-height:none!important;height:auto!important;border-bottom-width:2px!important}'
++  'body.show-map .location-list,body.show-map .results-header,body.show-map #results-count,body.show-map .detail-filter-toggle,body.show-map .detail-filter-panel{display:none!important}'
++  '.page-title{font-size:40px!important;line-height:1.05!important}'
++  '.listicle-map{height:280px!important}'
++  '.spot-card{grid-template-columns:1fr!important;gap:6px!important;padding:20px!important}'
++  '.spot-number{font-size:34px!important}'
++  '.spot-name{font-size:20px!important}'
++  '.spot-header{flex-wrap:wrap}'
++'}';
   var s=document.createElement('style');
   s.id='bgp-v15-styles';
   s.textContent=css;
@@ -169,7 +221,14 @@ function fillDetail(card){
   var fl=parseInt(field(card,'food-level'),10);
   var games=slot(card,'games');
 
-  setText(p,'.detail-type',LBL.T[type]||type);
+  // Detail type tag — set German label AND colour token class (tc/tb/tk)
+  var dtEl=p.querySelector('#detail-type')||p.querySelector('.detail-type');
+  if(dtEl){
+    dtEl.classList.remove('tc','tb','tk');
+    var dtTok=typeToken(type);
+    if(dtTok)dtEl.classList.add(dtTok);
+    dtEl.textContent=LBL.T[type]||type;
+  }
   setText(p,'.detail-name',name);
 
   var metaParts=[dist,reg];
@@ -233,14 +292,36 @@ function closeDetail(){
   if(p)p.classList.remove('open');
 }
 
+// Map a type code to its V11-style colour token suffix (used on .type-tag and #detail-type)
+function typeToken(type){return type==='cafe'?'tc':type==='bar'?'tb':type==='club'?'tk':''}
+
+// Mutate the card's .type-tag element: add colour token class and German label text.
+// The card DOM ships with English type-text ("club") and no colour class.
+// V11 used to do this; V15 takes over.
+function decorateCardTypeTag(card,type){
+  var tag=card.querySelector('.type-tag');
+  if(!tag)return;
+  var token=typeToken(type);
+  // Idempotent: remove any prior token, add current
+  tag.classList.remove('tc','tb','tk');
+  if(token)tag.classList.add(token);
+  // Replace the text. The wrapping span (if any) holds the label.
+  var span=tag.querySelector('span')||tag;
+  var labelEl=span;
+  var label=LBL.T[type]||labelEl.textContent.trim();
+  if(labelEl.textContent.trim()!==label)labelEl.textContent=label;
+}
+
 // ---- Marker management ----
 function addMarkerForCard(card){
   var lat=parseFloat(card.getAttribute('data-lat'));
   var lng=parseFloat(card.getAttribute('data-lng'));
+  var type=field(card,'type').toLowerCase();
+  // Always decorate the type-tag (even if marker already exists) — idempotent.
+  decorateCardTypeTag(card,type);
   if(!isFinite(lat)||!isFinite(lng))return false;
   var id=card.getAttribute('data-location-id')||(lat.toFixed(5)+','+lng.toFixed(5));
   if(state.markers[id])return false;
-  var type=field(card,'type').toLowerCase();
   var marker=L.marker([lat,lng],{icon:makeIcon(type)});
   marker.on('click',function(){
     fillDetail(card);
