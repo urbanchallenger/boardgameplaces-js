@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.5
+ * Version: 1.15.6
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -38,6 +38,11 @@
  *          V15 now resolves each section via its data-field id and walks up to the
  *          .detail-section ancestor to show/hide based on whether a value exists.
  *          Designer placeholder text is always overwritten.
+ * v1.15.6: Pill (.detail-pill) styling added — V14 created pill spans dynamically
+ *          but their visual styling came from the Webflow Designer, which lost the
+ *          rules during the migration. V15 now ships pill base style (dashed border,
+ *          paper background, condensed padding) plus solid-border variants for
+ *          .detail-pill-lang and .detail-pill-access.
  */
 (function(){'use strict';
 
@@ -81,6 +86,10 @@ function injectStyles(){
 +'input.range-slider::-moz-range-thumb{width:20px;height:20px;background:#c8471e;border:2px solid #2a2622;border-radius:50%;cursor:pointer;box-shadow:1.5px 1.5px 0 #2a2622;box-sizing:border-box}'
 // Pricing chip active state
 +'.pricing-chip.active{background:#1a1816!important;color:#fffdf7!important;border-color:#1a1816!important}'
+// Detail-panel pills (frequency, setting, language, accessibility tags)
++'.detail-pill{display:inline-flex;align-items:center;padding:3px 9px;border:1.5px dashed #2a2622;background:#fffdf7;font-size:12px;line-height:1.4;color:#1a1816;font-weight:500;letter-spacing:0.01em;white-space:nowrap}'
++'.detail-pill.detail-pill-lang{background:#f5f1e8;border-style:solid;border-width:1px}'
++'.detail-pill.detail-pill-access{background:#f5f1e8;border-style:solid;border-width:1px}'
 // Open states for filter panel and detail panel
 +'.detail-filter-panel.open{display:block!important}'
 +'.detail-panel.open{display:block!important}'
