@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.1
+ * Version: 1.15.2
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -18,6 +18,9 @@
  *
  * v1.15.1: V11 used to load Leaflet for us. With V11 removed, V15 now loads
  *          Leaflet (CSS+JS) itself before initialising the map.
+ * v1.15.2: Read ALL CMS-bound fields from .bgp-data slots. The card wrapper's
+ *          data-* attributes are Designer placeholder defaults, NOT real data.
+ *          Only data-lat, data-lng, data-location-id are CMS-bound at the wrapper.
  */
 (function(){'use strict';
 
@@ -79,9 +82,10 @@ function slot(card,key){
   var el=card.querySelector('.bgp-data[data-key="'+key+'"]');
   return el?el.textContent.trim():'';
 }
-function slotOrAttr(card,key,attr){
-  return slot(card,key)||(attr?(card.getAttribute(attr)||''):'')
-}
+// Read a card field. ALL CMS-bound fields live in .bgp-data slots — the wrapper data-* attributes
+// are Designer placeholder defaults (e.g. "Beispiel-Ort", "cafe"), NOT real CMS data.
+// The only wrapper attributes that are actually CMS-bound: data-lat, data-lng, data-location-id.
+function field(card,key){return slot(card,key)}
 
 // ---- Marker icon ----
 function makeIcon(type){
@@ -122,18 +126,18 @@ function fillDetail(card){
   var p=document.querySelector('.detail-panel')||document.getElementById('detail-panel');
   if(!p)return;
 
-  var type=card.getAttribute('data-type')||'';
-  var name=card.getAttribute('data-name')||'';
+  var type=field(card,'type').toLowerCase();
+  var name=field(card,'name');
   var dist=slot(card,'district');
   var reg=slot(card,'region');
   var ctry=slot(card,'country');
-  var freq=slotOrAttr(card,'frequency','data-frequency');
-  var setting=slotOrAttr(card,'setting','data-setting');
-  var pricing=slotOrAttr(card,'pricing','data-pricing');
-  var lang=slotOrAttr(card,'languages','data-languages');
-  var acc=slotOrAttr(card,'accessibility','data-accessibility');
-  var gl=parseInt(slotOrAttr(card,'game-level','data-game-level'),10);
-  var fl=parseInt(slotOrAttr(card,'food-level','data-food-level'),10);
+  var freq=field(card,'frequency');
+  var setting=field(card,'setting');
+  var pricing=field(card,'pricing');
+  var lang=field(card,'languages');
+  var acc=field(card,'accessibility');
+  var gl=parseInt(field(card,'game-level'),10);
+  var fl=parseInt(field(card,'food-level'),10);
   var games=slot(card,'games');
 
   setText(p,'.detail-type',LBL.T[type]||type);
@@ -207,7 +211,7 @@ function addMarkerForCard(card){
   if(!isFinite(lat)||!isFinite(lng))return false;
   var id=card.getAttribute('data-location-id')||(lat.toFixed(5)+','+lng.toFixed(5));
   if(state.markers[id])return false;
-  var type=(card.getAttribute('data-type')||'').toLowerCase();
+  var type=field(card,'type').toLowerCase();
   var marker=L.marker([lat,lng],{icon:makeIcon(type)});
   marker.on('click',function(){
     fillDetail(card);
@@ -242,29 +246,29 @@ function cardMatches(card){
   var f=state.filter;
   // Type
   if(f.type!=='all'){
-    var t=(card.getAttribute('data-type')||'').toLowerCase();
+    var t=field(card,'type').toLowerCase();
     if(t!==f.type)return false;
   }
   // Pricing
   if(f.pricing.size>0){
-    var p=slotOrAttr(card,'pricing','data-pricing');
+    var p=field(card,'pricing');
     if(!f.pricing.has(p))return false;
   }
   // Game level
   if(f.gameLevel>0){
-    var gl=parseInt(slotOrAttr(card,'game-level','data-game-level'),10);
+    var gl=parseInt(field(card,'game-level'),10);
     if(!gl||gl<f.gameLevel)return false;
   }
   // Food level
   if(f.foodLevel>0){
-    var fl=parseInt(slotOrAttr(card,'food-level','data-food-level'),10);
+    var fl=parseInt(field(card,'food-level'),10);
     if(!fl||fl<f.foodLevel)return false;
   }
   // Search
   if(f.search){
     var q=f.search.toLowerCase();
     var hay=[
-      card.getAttribute('data-name')||'',
+      field(card,'name'),
       slot(card,'district'),
       slot(card,'region'),
       slot(card,'address'),
