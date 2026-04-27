@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.6
+ * Version: 1.15.8
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -43,6 +43,14 @@
  *          rules during the migration. V15 now ships pill base style (dashed border,
  *          paper background, condensed padding) plus solid-border variants for
  *          .detail-pill-lang and .detail-pill-access.
+ * v1.15.7: Hide the legacy Detailfilter (toggle + panel) via CSS. The data model
+ *          has outgrown the existing filter UI and the toggle currently doesn't
+ *          open. Parked until the filter gets a redesign covering frequency,
+ *          setting, languages, accessibility.
+ * v1.15.8: Spielesammlung shows the recherchierte games-count-claim as primary
+ *          (e.g. "über 50 Spiele im Online-Katalog") instead of the bucket label
+ *          ("Groß (100–500)"), which can disagree with the actual count and
+ *          mislead. Bucket value stays in CMS for filtering. Sub-element hidden.
  */
 (function(){'use strict';
 
@@ -93,6 +101,10 @@ function injectStyles(){
 // Open states for filter panel and detail panel
 +'.detail-filter-panel.open{display:block!important}'
 +'.detail-panel.open{display:block!important}'
+// Detailfilter is parked for now — the data model has outgrown it (frequency, setting,
+// languages, accessibility were added but the filter UI hasn't been redesigned yet).
+// Hide both the toggle and the panel until the filter is reworked.
++'.detail-filter-toggle,#detail-filter-toggle,.detail-filter-panel,#detail-filter-panel{display:none!important}'
 // Submit form (left in for forwards-compat; V15 does not implement the form yet)
 +'#submit-form-backdrop.open{display:flex!important}'
 +'.form-input-err{border-color:#c8471e!important;background:#fef0ea!important}'
@@ -287,8 +299,16 @@ function fillDetail(card){
   // Webflow renders Designer placeholder text (e.g. "Beschreibung wird hier angezeigt.")
   // into these elements, so we MUST overwrite — clearing alone is not enough.
   setSection(p,'detail-desc',slot(card,'description'));
-  setSection(p,'detail-game',gl?LBL.G[gl]:'',
-             {subId:'detail-game-claim',subVal:slot(card,'games-count-claim')});
+  // Spielesammlung — show the human-written claim ("über 50 Spiele im Online-Katalog")
+  // as the primary value, falling back to the bucket label only when no claim exists.
+  // The bucket value (game-level 1–4) is kept in CMS for filtering but not displayed
+  // separately here, since it can disagree with the actual count and that's confusing.
+  var gameClaim=slot(card,'games-count-claim');
+  var gameDisplay=gameClaim||(gl?LBL.G[gl]:'');
+  setSection(p,'detail-game',gameDisplay);
+  // Hide the secondary claim element — claim has been promoted to primary.
+  var gameClaimEl=p.querySelector('#detail-game-claim');
+  if(gameClaimEl)gameClaimEl.style.display='none';
   setSection(p,'detail-food',fl?LBL.FD[fl]:'');
   setSection(p,'detail-pricing',pricing?(LBL.P[pricing]||pricing):'',
              {subId:'detail-pricing-detail',subVal:slot(card,'pricing-detail')});
