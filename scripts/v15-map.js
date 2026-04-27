@@ -1,6 +1,6 @@
 /*!
  * Board Game Places — V15 Single Layer Map
- * Version: 1.15.4
+ * Version: 1.15.5
  * Project: https://boardgameplaces.com
  * Repo: https://github.com/urbanchallenger/boardgameplaces-js
  * License: MIT
@@ -31,6 +31,13 @@
  *          classes to .type-tag elements per card type — V15 now does the same, and
  *          replaces the English type label ("club") with the German one ("Spieleclub").
  *          Same applies to #detail-type in the detail panel.
+ * v1.15.5: Detail panel selectors fixed. Webflow uses element IDs (#detail-desc,
+ *          #detail-game, #detail-address, #detail-hours, #detail-pricing, #detail-web,
+ *          #detail-name, #detail-meta, #detail-city, #detail-pillen) — not the class
+ *          names V15 was guessing. Sections share the single class .detail-section;
+ *          V15 now resolves each section via its data-field id and walks up to the
+ *          .detail-section ancestor to show/hide based on whether a value exists.
+ *          Designer placeholder text is always overwritten.
  */
 (function(){'use strict';
 
@@ -186,22 +193,33 @@ function pill(container,cls,text){
   s.textContent=text;
   container.appendChild(s);
 }
-function setText(panel,sel,val){
-  var el=panel.querySelector(sel);
+// Set text on an element with the given id, scoped under panel.
+// Webflow may render Designer placeholder text — we always overwrite.
+function setIdText(panel,id,val){
+  var el=panel.querySelector('#'+id);
   if(el)el.textContent=val||'';
 }
-function showSection(panel,sectionSel,fields){
-  // fields: array of {sel, val} — section visible if any val truthy
-  var sec=panel.querySelector(sectionSel);
+// Resolve a section by the data-field id it contains, then show/hide it based on the value.
+// All Webflow detail sections share the same .detail-section class — we identify the section
+// by the field-element's id and walk up to the nearest .detail-section ancestor.
+// opts.subId/opts.subVal: optional secondary value (e.g. games-count-claim under games)
+function setSection(panel,id,val,opts){
+  var el=panel.querySelector('#'+id);
+  if(!el)return;
+  var sec=el.closest('.detail-section');
   if(!sec)return;
-  var anyValue=fields.some(function(f){return !!f.val});
-  if(!anyValue){sec.style.display='none';return}
+  var hasVal=!!val;
+  var subVal=opts&&opts.subVal;
+  if(!hasVal&&!subVal){sec.style.display='none';return}
   sec.style.display='';
-  fields.forEach(function(f){
-    if(!f.sel)return;
-    var el=sec.querySelector(f.sel);
-    if(el)el.textContent=f.val||'';
-  });
+  el.textContent=val||'—';
+  if(opts&&opts.subId){
+    var subEl=panel.querySelector('#'+opts.subId);
+    if(subEl){
+      subEl.textContent=subVal||'';
+      subEl.style.display=subVal?'':'none';
+    }
+  }
 }
 function fillDetail(card){
   var p=document.querySelector('.detail-panel')||document.getElementById('detail-panel');
@@ -219,7 +237,6 @@ function fillDetail(card){
   var acc=field(card,'accessibility');
   var gl=parseInt(field(card,'game-level'),10);
   var fl=parseInt(field(card,'food-level'),10);
-  var games=slot(card,'games');
 
   // Detail type tag — set German label AND colour token class (tc/tb/tk)
   var dtEl=p.querySelector('#detail-type')||p.querySelector('.detail-type');
@@ -229,15 +246,19 @@ function fillDetail(card){
     if(dtTok)dtEl.classList.add(dtTok);
     dtEl.textContent=LBL.T[type]||type;
   }
-  setText(p,'.detail-name',name);
 
+  // Name (id=detail-name)
+  setIdText(p,'detail-name',name);
+
+  // Meta line + city line — Webflow has both #detail-meta and #detail-city; populate both
   var metaParts=[dist,reg];
   if(ctry&&ctry!=='DE'&&ctry!=='Deutschland')metaParts.push(ctry);
-  setText(p,'.detail-meta',metaParts.filter(Boolean).join(' · '));
-  setText(p,'.detail-city',metaParts.filter(Boolean).join(' · '));
+  var metaText=metaParts.filter(Boolean).join(' · ');
+  setIdText(p,'detail-meta',metaText);
+  setIdText(p,'detail-city',metaText);
 
-  // Pills row
-  var pillRow=p.querySelector('.detail-pillen,.detail-pillen-row');
+  // Pills row (id=detail-pillen)
+  var pillRow=p.querySelector('#detail-pillen')||p.querySelector('.detail-pillen-row,.detail-pillen');
   if(pillRow){
     pillRow.innerHTML='';
     if(freq&&LBL.F[freq])pill(pillRow,'',LBL.F[freq]);
@@ -252,34 +273,29 @@ function fillDetail(card){
     });
   }
 
-  showSection(p,'.detail-section-desc',[{sel:'.detail-desc',val:slot(card,'description')}]);
-  showSection(p,'.detail-section-game',[
-    {sel:'.detail-game',val:gl?LBL.G[gl]:''},
-    {sel:'.detail-game-claim',val:slot(card,'games-count-claim')}
-  ]);
-  showSection(p,'.detail-section-food',[{sel:'.detail-food',val:fl?LBL.FD[fl]:''}]);
-  showSection(p,'.detail-section-pricing',[
-    {sel:'.detail-pricing',val:pricing?(LBL.P[pricing]||pricing):''},
-    {sel:'.detail-pricing-detail',val:slot(card,'pricing-detail')}
-  ]);
-  showSection(p,'.detail-section-address',[{sel:'.detail-address',val:slot(card,'address')}]);
-  showSection(p,'.detail-section-hours',[{sel:'.detail-hours',val:slot(card,'hours')}]);
+  // Each section is a sibling .detail-section. We resolve sections by the data-field id
+  // they contain, then show/hide the whole section based on whether the value is present.
+  // Webflow renders Designer placeholder text (e.g. "Beschreibung wird hier angezeigt.")
+  // into these elements, so we MUST overwrite — clearing alone is not enough.
+  setSection(p,'detail-desc',slot(card,'description'));
+  setSection(p,'detail-game',gl?LBL.G[gl]:'',
+             {subId:'detail-game-claim',subVal:slot(card,'games-count-claim')});
+  setSection(p,'detail-food',fl?LBL.FD[fl]:'');
+  setSection(p,'detail-pricing',pricing?(LBL.P[pricing]||pricing):'',
+             {subId:'detail-pricing-detail',subVal:slot(card,'pricing-detail')});
+  setSection(p,'detail-address',slot(card,'address'));
+  setSection(p,'detail-hours',slot(card,'hours'));
 
-  // Games (new slot - defensive, hide section if empty)
-  showSection(p,'.detail-section-games',[{sel:'.detail-games',val:games}]);
-
-  // Web link
-  var webSec=p.querySelector('.detail-section-web');
+  // Web link (id=detail-web is the <a> itself, not a section wrapper)
   var web=slot(card,'web');
-  if(webSec){
+  var wa=p.querySelector('#detail-web');
+  var webSec=wa?wa.closest('.detail-section'):null;
+  if(wa&&webSec){
     if(web&&!/example\.com/i.test(web)){
       webSec.style.display='';
-      var wa=webSec.querySelector('.detail-web');
-      if(wa){
-        var href=web.indexOf('http')===0?web:'https://'+web;
-        wa.setAttribute('href',href);
-        wa.textContent=web.replace(/^https?:\/\//,'').replace(/\/$/,'');
-      }
+      var href=web.indexOf('http')===0?web:'https://'+web;
+      wa.setAttribute('href',href);
+      wa.textContent=web.replace(/^https?:\/\//,'').replace(/\/$/,'');
     }else{
       webSec.style.display='none';
     }
